@@ -43,6 +43,7 @@ def convert_colls_to_numpys(dir_in_str,elems):
 
   for i, elem in enumerate(elems):
     np.save(f"{dir_in_str}/{elem}/collision.npy",colls[i])
+    os.remove(f"{dir_in_str}/{elem}/COLLISON_REDUCED.txt")
   
 
 def find_indexes(data_elem,data_list,masses):
