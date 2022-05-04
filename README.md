@@ -41,3 +41,7 @@ The function will run and create three new files:
 - EXYZ.npy
 
 You can now remove the EXYZ.txt and COLLISION.txt files if you wish to save some space.
+
+
+# RCTRIM.py
+
