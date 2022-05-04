@@ -1,0 +1,2 @@
+# ReCTRIM
+Takes information of 
