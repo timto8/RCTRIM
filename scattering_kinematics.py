@@ -5,10 +5,8 @@ Created on Tue Nov  9 15:42:32 2021
 @author: Tim
 """
 import numpy as np
-import matplotlib.pyplot as plt
-import math
+# import math
 import numba
-from mpl_toolkits.mplot3d import Axes3D
 
 
 def targetMass(m, E_r, E_n, theta):
@@ -34,7 +32,7 @@ def targetMass(m, E_r, E_n, theta):
   
   return M
 
-
+@numba.njit
 def alpha(m,M,E_r,E_n):
   """
   Parameters
@@ -100,6 +98,7 @@ def rot_secondary_to_primary(y,x,s_track):
   """
   angle = np.arccos(np.dot(y,x))
   u = np.cross(y,x)/np.sin(angle)
+  
   MAT = rot_matrix(angle, u[0],u[1],u[2])
   
   rot = np.zeros(s_track.shape)
@@ -144,3 +143,7 @@ def rot_secondary_to_recoil_pos(alpha, x_i, x_iplus1, s_track):
   rot[2,:] = MAT[2,0]*s_track[0,:] + MAT[2,1]*s_track[1,:] + MAT[2,2]*s_track[2,:]
             
   return rot
+
+
+  
+  
