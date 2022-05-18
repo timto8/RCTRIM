@@ -98,4 +98,4 @@ RCTRIM is designed to generate many tracks in one run and is unreliable when ope
 
 # example.py
 
-This file is set up with a parameter dicitonary which can be altered based on your situation.
+This file is set up with a parameter dictionary which can be altered based on your situation.
