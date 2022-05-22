@@ -5,6 +5,10 @@ RCTRIM also allows for the approximation of Migdal events by adding output from 
 
 RCTRIM requires modified versions of the EXYZ.txt and COLLISION.txt files, but includes the conversion tool necessary to reformat them.
 
+Python package dependencies:
+- Numpy
+- Numba
+
 # Getting started with TRIM
 
 Below is the SRIM Main Menu interface which appears when executing SRIM.exe in the SRIM installation directory: 
