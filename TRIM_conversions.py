@@ -5,10 +5,7 @@ Created on Fri Feb 25 14:38:02 2022
 @author: Tim
 """
 import numpy as np
-import numba
 import os
-import time
-import threading
 
 import elements
 
