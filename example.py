@@ -4,14 +4,14 @@ Created on Fri May 13 13:04:53 2022
 
 @author: Tim Marley
 """
-import RCTRIM_OOP as RCTRIM
+import RCTRIM
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 run_RCTRIM = True
 
 RCTRIM_params = {
-  "NR_directory": "D:/D:/2022-05-16-RCTRIM/NRs/30keV/",
-  "primary_species": "F", # Fluorine
+  "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/250keV/", # NR directory
+  "proj": "F", # Fluorine as primary species
   "E_r": None, # Primary ion starting energy [keV], will infer from file if None.
   "batch_size": 10, # Number of tracks to calculate simultaneously.
   
