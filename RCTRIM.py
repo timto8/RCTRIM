@@ -25,9 +25,11 @@ class RCTRIM:
     self._proj_index = self._elems.index(self.proj)
     self._proj_data = self._data[self._proj_index].copy()
   
+  
   def load_ERs(self):
     self._e_data = np.load(f"{self.e_dir_in_str}/electron_{self.e_energy}keV.npy")[:,0:4] # i,x,y,z,t,flag
     self._e_indexes, self._e_counts, self._e_cumulative_counts = tracks.get_counts_and_cumulative(self._e_data[:,0])
+  
   
   def set_ICCs(self):
     self._INDEXES = [0 for i in range(len(self._elems))]
@@ -41,17 +43,32 @@ class RCTRIM:
     self._COUNTS = tuple(self._COUNTS)
     self._CUMULATIVE_COUNTS = tuple(self._CUMULATIVE_COUNTS)
     
+    
   def split_batches(self):
-    if self._batch_size == None:
-      self._batch_size = len(self._proj_data)
+    E_r_check = isinstance(self.E_r, np.ndarray) or isinstance(self.E_r, list)
+    if (not self._batch_size) or E_r_check:
+      self._data_split = self._proj_data
+      self._counts_split = self._COUNTS[self._proj_index]
+      self._cumulative_counts_split = self._CUMULATIVE_COUNTS[self._proj_index]
       
-    self._data_split = np.split(self._proj_data,self._CUMULATIVE_COUNTS[self._proj_index][self._batch_size::self._batch_size],axis=0)
-    icc_split = [self._batch_size*(i+1) for i in range(len(self._COUNTS[self._proj_index])//self._batch_size)]
-    self._counts_split = np.split(self._COUNTS[self._proj_index],icc_split,axis=0)
-    self._cumulative_counts_split = np.split(self._CUMULATIVE_COUNTS[self._proj_index],icc_split,axis=0)
+      if self._batch_size:
+        split_indices = [self._batch_size*(i+1) for i in range(len(self.E_r)//self._batch_size - 1)]
+        self.E_r_split = np.split(self.E_r,split_indices)  
+      else:
+        self.E_r_split = None
+    
+    else: # Only split these arrays if using a single E_r and there's a batch size
+      self._data_split = np.split(self._proj_data,self._CUMULATIVE_COUNTS[self._proj_index][self._batch_size::self._batch_size],axis=0)
+      icc_split = [self._batch_size*(i+1) for i in range(len(self._COUNTS[self._proj_index])//self._batch_size)]
+      self._counts_split = np.split(self._COUNTS[self._proj_index],icc_split,axis=0)
+      self._cumulative_counts_split = np.split(self._CUMULATIVE_COUNTS[self._proj_index],icc_split,axis=0)
+      self.E_r_split = None
+      
   
   def save_tracks(self, save_dir=""):
     counter = 0
+    E = self.E_r
+    
     for data, list_of_all_tracks, prim_Es, elec_Es in self.track_gen:
       counts_list, cumulative_counts_list = tracks.get_counts_lists(data, list_of_all_tracks)
       
@@ -87,11 +104,17 @@ class RCTRIM:
             xyzdxdydzs[:,-1] -= np.nanmin(xyzdxdydzs[:,-1]) # change to delta_z
             xyzdxdydzs[:,-1] = xyzdxdydzs[:,-1] / self.drift_velocity
           
-          if self.migdal:
-            file_name = f"{save_dir}/{self.E_r}keV_{self.proj}_{self.e_energy}keV_e_{drift_length:.3f}cm_{counter}.txt"
-          else:
-            file_name = f"{save_dir}/{self.E_r}keV_{self.proj}_{drift_length:.3f}cm_{counter}.txt"
+          if isinstance(self.E_r, np.ndarray) or isinstance(self.E_r, list):
+            E = f"{self.E_r[counter]:.3f}"
           
+          if self.migdal:
+            file_name = f"{save_dir}/{E}keV_{self.proj}_{self.e_energy}keV_e_{drift_length:.3f}cm_{counter}.txt"
+          else:
+            file_name = f"{save_dir}/{E}keV_{self.proj}_{drift_length:.3f}cm_{counter}.txt"
+          
+          if self.random_xy_offset:
+            xyzdxdydzs[:,[0,3]] += random.rand(-4,4)
+            xyzdxdydzs[:,[1,4]] += random.rand(-4,4)
   
           np.savetxt(file_name,xyzdxdydzs,fmt="%.4f")
           counter += 1
@@ -103,7 +126,7 @@ class RCTRIM:
   def __init__(self, dir_in_str, proj, 
                E_r = None, batch_size = None,
                migdal = False, e_energy=5.9, e_dir_in_str="./",
-               W = 0.0345, dz_shift = True, 
+               W = 0.0345, dz_shift = True, random_xy_offset = False,
                drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016):
     
     self.dir_in_str = dir_in_str
@@ -115,6 +138,7 @@ class RCTRIM:
     
     self.W = W
     self.dz_shift = dz_shift
+    self.random_xy_offset = random_xy_offset
     self.drift_velocity = drift_velocity
     self.diff_T = diff_T
     self.diff_L = diff_L
@@ -130,16 +154,16 @@ class RCTRIM:
     
     self.split_batches()
     
-    self.max_E_allowed = np.nanmax(self._proj_data[:,2])
-    if self.E_r == None:
+    self.max_E_allowed = self._proj_data[0,2] # the first value is the largest.
+    if self.E_r is None:
       self.E_r = self.max_E_allowed
     
-    assert self.E_r <= self.max_E_allowed
+    assert np.all(self.E_r <= self.max_E_allowed)
     
     self.tracks = tracks.tracks(self.E_r, self._data_split, self.max_E_allowed, self.proj_m, 
                                 self._counts_split, self._cumulative_counts_split,
                                 self._data, self._masses, self._COUNTS, self._CUMULATIVE_COUNTS,
-                                rotate = True, E_threshold=0.01)
+                                E_r_split = self.E_r_split, rotate = True, E_threshold=0.01)
     
     self.track_gen = self.tracks.cascade()
     

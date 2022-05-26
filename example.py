@@ -5,14 +5,15 @@ Created on Fri May 13 13:04:53 2022
 @author: Tim Marley
 """
 import RCTRIM
+import numpy as np
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 run_RCTRIM = True
 
 RCTRIM_params = {
-  "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/250keV/", # NR directory
+  "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
   "proj": "F", # Fluorine as primary species
-  "E_r": None, # Primary ion starting energy [keV], will infer from file if None.
+  "E_r": 400*np.random.rand(100)+50, # Primary ion starting energy/energies [keV], will infer from file if None.
   "batch_size": 10, # Number of tracks to calculate simultaneously.
   
   "migdal": False, # Don't make Migdal events.
@@ -20,6 +21,8 @@ RCTRIM_params = {
   "e_dir_in_str": "D:/2022-05-16-RCTRIM/electrons/", # Directory containing electron files.
   
   "W": 0.0345, # W-value (energy for ionisation) [keV].
+  
+  "random_xy_offset": False, # Whether to randomly shift the track in an 8x8 window.
   
   "dz_shift": True, # Offset the z-coordinate such that z > 0 & convert to time.
   "drift_velocity": 0.013, # Drift velocity [cm/ns] to convert dz to dt.

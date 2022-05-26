@@ -11,10 +11,10 @@ import DEGRAD_conversions as dc
 save_TRIM = True
 
 # Directory should always contain separate folders named after each element:
-trim_file_dir = "D:/2022-05-16-RCTRIM/NRs/"
+trim_file_dir = "D:/2022-05-16-RCTRIM/NRs/DD_CF4/"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-save_DEGRAD = True
+save_DEGRAD = False
 
 degrad_file_dir = "D:/2022-05-16-RCTRIM/electrons/raw/"
 degrad_file_name = "DEGRAD.OUT"

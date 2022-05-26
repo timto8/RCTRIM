@@ -8,12 +8,54 @@ import numpy as np
 import numba
 
 import math
-import random
 
 import scattering_kinematics as sK  
 
 
 class tracks:
+  def clip_E_multiple(self):
+    """
+    clip the tracks based on multiple specified energies.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    new_arr = np.zeros((self.cumulative_counts_split[len(self.E_r)],self.data_split.shape[-1]))
+    
+    new_arr_shape = new_arr.shape
+    len_Es = len(self.E_r)
+    
+    counter = 0
+    
+    self.E_r[self.E_r > self.max_E_allowed] = self.max_E_allowed
+    # print(new_arr_shape)
+    
+    for i,E in enumerate(self.E_r):
+    
+      index = int(self.sorted_arr[np.searchsorted(self.sorted_arr[:,2],E,side="left"),0])
+      # print(E,self.data_split[index,2])
+      cc_ = self.cumulative_counts_split[np.searchsorted(self.cumulative_counts_split, index,side="right")]
+      
+      if counter+(cc_-index) > new_arr_shape[0]:
+        print("couldn't fit array in remaining space, extending...")
+        
+        new_arr = np.append(
+          new_arr, np.zeros( (len_Es*new_arr_shape[0]//i,new_arr_shape[1]) ), axis=0
+        )
+        new_arr_shape = new_arr.shape
+
+      new_arr[counter:counter+(cc_-index),:] = self.data_split[index:cc_,:]
+        
+      counter += (cc_-index)
+    
+    self.data = new_arr[:counter,:]
+    
+    self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
+    
+  
   def clip_E(self):
     arr_truth = self.data[:,2] <= self.E_r
     # can grab first energy above threshold:
@@ -23,48 +65,105 @@ class tracks:
     # get new counts and cumulative
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
   
-  def rot_track(self, acceptance=0.01, histogram=None, m = 1.0086649, E_n = 2.45e3):
-    if histogram == None:
-      # Elastic scattering only:
-      cos_sq_alpha = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
-      cos_alpha = math.sqrt(cos_sq_alpha)
-      sin_alpha = math.sqrt(1-cos_sq_alpha)
+  
+  def rot_track(self, acceptance = 0.01, 
+                histogram = None, specify_angles = None, 
+                m = 1.0086649, E_n = 2.45e3):
+    """
+    Method for rotating the tracks to their energy-appropriate angle based on an incident projectile.
     
-    # print(self.cumulative_counts)
+    Parameters
+    ----------
+    acceptance : float, optional
+      Fractional acceptance of track energy 
+      (e.g. if you ask to access the last 10 keV you should expect 
+      some energies of 10.01 keV, 9.99 keV etc.) The default is 0.01 (1%).
+    histogram : tuple of arrays (n, bins), optional
+      Tuple of the direct output of matplotlib/numpy histogram of recoil angles (n, bin edges).
+      The default is None.
+    specify_angles : np.ndarray(np.float64), optional
+      Specific recoil angles for use with multiple recoil energies. 
+      Must have same length as self.E_r. The default is None.
+    m : float, optional
+      Mass of incident particle (in u). The default is 1.0086649.
+    E_n : float, optional
+      Energy of incident particle (MeV). The default is 2.45e3.
+
+    Returns
+    -------
+    None.
+
+    """
+    # Check whether one E_r or multiple:
+    # print(self.data_split.shape)
+    # want the initial direction to be based on energy:
+    # Two options: Elastic, or histogram
+    # Histogram needs to generate an array of angles instead of 
+    if histogram == None:
+      if self.energy_check:
+        # Elastic scattering only:
+        cos_sq_alpha = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
+        cos_alpha = math.sqrt(cos_sq_alpha)
+        sin_alpha = math.sqrt(1-cos_sq_alpha)
+      else:
+        if (isinstance(specify_angles, np.ndarray) or isinstance(specify_angles, list)):
+          # elastic + inelastic:
+          cos_alphas = np.cos(specify_angles)
+          sin_alphas = np.sqrt(1- cos_alphas*cos_alphas)
+        else: # only elastic scattering:
+          cos_sq_alphas = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
+          cos_alphas = np.sqrt(cos_sq_alphas)
+          sin_alphas = np.sqrt(1-cos_sq_alphas)
+          # if len(cos_alphas) == 0:
+          #   print(self.E_r)
+        
+    else:
+      assert self.energy_check, "If using multiple recoil energies, histogram must be None."
+      assert (isinstance(histogram,tuple) or isinstance(histogram,list)), "Histogram must be of format (n, bin_edges)."
+      BIN_CENTRES = (histogram[1][1:]+histogram[1][:-1])/2
+
+      CDF = np.cumsum(histogram[0])
+      CDF /= CDF[-1]
+
+      gen = np.random.rand(len(self.counts))
+      cos_alphas = np.cos(BIN_CENTRES[np.searchsorted(CDF,gen)])
+      sin_alphas = np.sqrt(1- cos_alphas*cos_alphas) # quicker than np.sin
+      
+    # The angle perpendicular to the beam is isotropic:
+    phis = 2*math.pi*np.random.rand(len(self.counts))
+    
     for i in range(len(self.counts)):
       count = self.counts[i]
       cumulative_count = self.cumulative_counts[i]
       
+      if (histogram is not None) or (not self.energy_check):
+        cos_alpha = cos_alphas[i]
+        sin_alpha = sin_alphas[i]
       
       data_ = self.data[cumulative_count:cumulative_count + count,:]
-      # print(cumulative_count, len(self.data))
+      # print(self.E_r)
     
-      # If the energy is too high, code it to -1 so it can be removed later
-      if data_[0,2] >= self.E_r*(1+acceptance):
-        data_[0,2] = -1
-        # If the second energy is too low, we don't want the track at all
-        if data_[1,2] <= self.E_r*(1-acceptance):
-          data_[1:,2] = -1
-          continue
+      if self.energy_check:
+        # If the energy is too high, code it to -1 so it can be removed later
+        if data_[0,2] >= self.E_r*(1+acceptance):
+          data_[0,2] = -1
+          # If the second energy is too low, we don't want the track at all
+          if data_[1,2] <= self.E_r*(1-acceptance):
+            data_[1:,2] = -1
+            continue
         
       data_[:,3:6] = data_[:,3:6]-data_[0,3:6] # translate to 0,0,0
       
-      # want the initial direction to be based on energy:
-      # Two options: Elastic, or histogram
-      
-      if histogram == None:
-        phi = 2*math.pi*random.random()
-        x_i = np.array([cos_alpha,
-                        sin_alpha*math.cos(phi),
-                        sin_alpha*math.sin(phi)])
-      else:
-        pass # Code to be added
-      
+      x_i = np.array([cos_alpha,
+                      sin_alpha*math.cos(phis[i]),
+                      sin_alpha*math.sin(phis[i])])
+
       data_[:,3:6] = sK.rot_secondary_to_primary(data_[1,9:12],x_i,data_[:,3:6].T).T
       
       data_[0,9:12] = x_i
       
       data_[1:,9:12] = (data_[1:,3:6]-data_[:-1,3:6])/np.expand_dims(data_[1:,8],axis=1)
+      
       
   def prepare_secondaries(self):
     self.num_secondaries = np.sum(self.arr_truth)
@@ -72,6 +171,7 @@ class tracks:
     self.secondaries = np.nan*np.zeros((self.num_secondaries,self.data.shape[1]+3)) # +3 for x_iplus1
     self.secondaries[:,:-3] = self.data[self.arr_truth,:]
     self.secondaries[:,-3:] = self.data[np.roll(self.arr_truth,1),9:12]
+  
   
   def iter_sec_tracks(self):
     all_sec_tracks = np.nan*np.zeros((50*len(self.secondaries),self.DATA[0].shape[1]+2)) # bit of a hacky *50
@@ -125,6 +225,7 @@ class tracks:
       
     self.list_of_all_tracks.append(all_sec_tracks[:counter,:])
     
+    
   def tertiary_loop(self):
     while np.sum(self.list_of_all_tracks[-1][:,7] > self.E_threshold):
       all_sec_tracks = self.list_of_all_tracks[-1]
@@ -160,16 +261,25 @@ class tracks:
     
   def cascade(self):
     
-    for i in range(len(self.data_split)):
+    if not self.energy_check:
+      self.sorted_arr = self.data_split[np.argsort(self.data_split[:,2]),:]
+    
+    for i in range(self._num_splits):
       
-      self.data = self.data_split[i]      
-      self.counts = self.counts_split[i]
-      self.cumulative_counts = self.cumulative_counts_split[i]
-      self.cumulative_counts = self.cumulative_counts - self.cumulative_counts[0]
+      if not self.energy_check:
+        
+        if self._num_splits != 1:
+          self.E_r = self.E_r_split[i]
+        self.clip_E_multiple()
       
-      if self.E_r < self.max_E_allowed:
-        # need to only grab relevant energies
-        self.clip_E()
+      else:
+        self.data = self.data_split[i]      
+        self.counts = self.counts_split[i]
+        self.cumulative_counts = self.cumulative_counts_split[i]
+        self.cumulative_counts = self.cumulative_counts - self.cumulative_counts[0]
+        if self.E_r < self.max_E_allowed:
+          # need to only grab relevant energies
+          self.clip_E()
         
       if self.rotate:
         self.rot_track()
@@ -213,13 +323,23 @@ class tracks:
       
       yield self.data, self.list_of_all_tracks, self.prim_Es, self.sum_elec_Es
   
+  
   def __init__(self, E_r, data_split, max_E_allowed, proj_m, 
                counts_split, cumulative_counts_split,
                DATA, MASSES, COUNTS, CUMULATIVE_COUNTS,
-               rotate = True, E_threshold=0.01):
+               E_r_split = None, rotate = True, E_threshold=0.01):
     
     self.E_r = E_r
+    self.E_r_split = E_r_split
+    self.energy_check = (isinstance(self.E_r, float) or isinstance(self.E_r, int))
     self.data_split = data_split
+    if E_r_split is not None:
+      self._num_splits = len(self.E_r_split)
+    elif isinstance(self.data_split, list):
+      self._num_splits = len(self.data_split)
+    else:
+      self._num_splits = 1
+    
     self.max_E_allowed = max_E_allowed
     self.proj_m = proj_m
     
@@ -232,7 +352,6 @@ class tracks:
     self.rotate = rotate
     self.E_threshold = E_threshold
     
-    # print(self.data_split)
     
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
