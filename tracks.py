@@ -53,7 +53,7 @@ class tracks:
     
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
     
-    np.savetxt("data.csv",self.data,delimiter=",",fmt="%.4f")
+    # np.savetxt("data.csv",self.data,delimiter=",",fmt="%.4f")
     
   
   def clip_E(self,acceptance = 0.01):
