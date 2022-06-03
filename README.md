@@ -103,3 +103,10 @@ RCTRIM is designed to generate many tracks in one run and is unreliable when ope
 # example.py
 
 This file is set up with a parameter dictionary which can be altered based on your situation.
+
+
+# Preview 
+
+Elastic fluorine recoils spread over an 8x8x2 cm window. The energies and angles are based on incident D-D neutrons travelling in +x direction.
+
+![alt text](https://github.com/timto8/RCTRIM/blob/main/github_ims/Spectrum_of_NRs.png?raw=true)
