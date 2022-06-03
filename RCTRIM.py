@@ -74,7 +74,10 @@ class RCTRIM:
     E = self.E_r
     
     for data, list_of_all_tracks, prim_Es, elec_Es in self.track_gen:
-
+      
+      if counter > 2000:
+        np.savetxt(f"data_{counter}.csv",data,delimiter=",",fmt="%.4f")
+      
       indexes_list, counts_list, cumulative_counts_list = tracks.get_counts_lists(data, list_of_all_tracks)
 
       for j in range(len(indexes_list[0])): # j was track_no
@@ -184,7 +187,7 @@ class RCTRIM:
     self.tracks = tracks.tracks(self.E_r, self._data_split, self.max_E_allowed, self.proj_m, 
                                 self._counts_split, self._cumulative_counts_split,
                                 self._data, self._masses, self._COUNTS, self._CUMULATIVE_COUNTS,
-                                E_r_split = self.E_r_split, rotate = True, E_threshold=0.01)
+                                E_r_split = self.E_r_split, rotate = True, E_threshold=0.02)
     
     self.track_gen = self.tracks.cascade()
     

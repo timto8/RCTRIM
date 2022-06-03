@@ -33,8 +33,11 @@ class tracks:
     
       index = int(self.sorted_arr[np.searchsorted(self.sorted_arr[:,2],E,side="left"),0])
       # print(E, self.data_split[index,2])
-
-      cc_ = self.cumulative_counts_split[np.searchsorted(self.cumulative_counts_split, index,side="right")]
+      track_end = np.searchsorted(self.cumulative_counts_split, index,side="right")
+      if track_end == len(self.cumulative_counts_split):
+        cc_ = len(self.sorted_arr[:,1]) # if the last track is selected, we need to manually set cc_
+      else:
+        cc_ = self.cumulative_counts_split[track_end]
       
       if counter+(cc_-index) > new_arr_shape[0]:
         print("couldn't fit array in remaining space, extending...")
@@ -53,7 +56,7 @@ class tracks:
     
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
     
-    # np.savetxt("data.csv",self.data,delimiter=",",fmt="%.4f")
+    
     
   
   def clip_E(self,acceptance = 0.01):
@@ -348,7 +351,7 @@ class tracks:
   def __init__(self, E_r, data_split, max_E_allowed, proj_m, 
                counts_split, cumulative_counts_split,
                DATA, MASSES, COUNTS, CUMULATIVE_COUNTS,
-               E_r_split = None, rotate = True, E_threshold=0.01):
+               E_r_split = None, rotate = True, E_threshold=0.02):
     
     self.E_r = E_r
     self.E_r_split = E_r_split

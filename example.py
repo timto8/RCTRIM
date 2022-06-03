@@ -11,8 +11,8 @@ import numpy as np
 run_RCTRIM = True
 
 F_CDF = np.genfromtxt("DD_F(n,n)_CDF.txt")
-gen = np.random.rand(1000)
-Es = F_CDF[np.searchsorted(F_CDF[:,1],gen),0]+ np.random.normal(0,0.5,len(gen))
+gen = np.random.rand(5000)
+Es = F_CDF[np.searchsorted(F_CDF[:,1],gen),0]+ np.random.normal(0,1,len(gen))
 Es = Es[Es<467]
 Es = Es[Es>1]
 
@@ -21,13 +21,13 @@ RCTRIM_params = {
   # "dir_in_str": "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
   "proj": "F", # primary species
   "E_r": Es, # Primary ion starting energy/energies [keV], will infer from file if None.
-  "batch_size": 10, # Number of tracks to calculate simultaneously.
+  "batch_size": 50, # Number of tracks to calculate simultaneously.
   
   "event_viewer": False, # This is very slow and requires open3d to be installed.
   # event_viewer displays the location of the NRs. 
   # Colour is based on position/directionality, (x,y,z) = (r,g,b).
   
-  "migdal": True, # Whether to make Migdal events.
+  "migdal": False, # Whether to make Migdal events.
   "e_energy": 5.9, # Electron energy [keV].
   "e_dir_in_str": "D:/2022-05-16-RCTRIM/electrons/", # Directory containing electron files.
   # "e_dir_in_str": "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/electrons/", # Directory containing electron files.
