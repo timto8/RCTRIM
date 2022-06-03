@@ -9,6 +9,9 @@ Python package dependencies:
 - Numpy
 - Numba
 
+Optional dependencies:
+- open3d
+
 # Getting started with TRIM
 
 Below is the SRIM Main Menu interface which appears when executing SRIM.exe in the SRIM installation directory: 
