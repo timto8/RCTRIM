@@ -104,6 +104,8 @@ RCTRIM is designed to generate many tracks in one run and is unreliable when ope
 
 This file is set up with a parameter dictionary which can be altered based on your situation.
 
+BUG: For some reason if you request too many energies at once (if using the spectrum mode), the energies will break. I advise that if you have 1000 NRs in your EXYZ file that you only request 500 energies per run (scale as appropriate).  Keep an eye on the file sizes of the .txt files produced, if the file sizes are very wrong I suggest running with fewer energies at once.
+
 
 # Preview 
 
