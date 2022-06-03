@@ -10,7 +10,7 @@ Python package dependencies:
 - Numba
 
 Optional dependencies:
-- open3d
+- Open3d
 
 # Getting started with TRIM
 
