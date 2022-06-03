@@ -10,28 +10,42 @@ import numpy as np
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 run_RCTRIM = True
 
+F_CDF = np.genfromtxt("DD_F(n,n)_CDF.txt")
+gen = np.random.rand(1000)
+Es = F_CDF[np.searchsorted(F_CDF[:,1],gen),0]+ np.random.normal(0,0.5,len(gen))
+Es = Es[Es<467]
+Es = Es[Es>1]
+
 RCTRIM_params = {
   "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
-  "proj": "F", # Fluorine as primary species
-  "E_r": 400*np.random.rand(100)+50, # Primary ion starting energy/energies [keV], will infer from file if None.
+  # "dir_in_str": "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
+  "proj": "F", # primary species
+  "E_r": Es, # Primary ion starting energy/energies [keV], will infer from file if None.
   "batch_size": 10, # Number of tracks to calculate simultaneously.
   
-  "migdal": False, # Don't make Migdal events.
+  "event_viewer": False, # This is very slow and requires open3d to be installed.
+  # event_viewer displays the location of the NRs. 
+  # Colour is based on position/directionality, (x,y,z) = (r,g,b).
+  
+  "migdal": True, # Whether to make Migdal events.
   "e_energy": 5.9, # Electron energy [keV].
   "e_dir_in_str": "D:/2022-05-16-RCTRIM/electrons/", # Directory containing electron files.
+  # "e_dir_in_str": "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/electrons/", # Directory containing electron files.
   
   "W": 0.0345, # W-value (energy for ionisation) [keV].
   
-  "random_xy_offset": False, # Whether to randomly shift the track in an 8x8 window.
+  "random_xy_offset": True, # Whether to randomly shift the track in an 8x8 window.
   
   "dz_shift": True, # Offset the z-coordinate such that z > 0 & convert to time.
   "drift_velocity": 0.013, # Drift velocity [cm/ns] to convert dz to dt.
   
   "diff_T": 0.026, # Transverse diffusion [cm/cm**0.5].
   "diff_L": 0.016, # Longitudinal diffusion [cm/cm**0.5].
+  
 }
 
-save_dir = "D:/2022-05-16-RCTRIM/save_dir/F/"
+save_dir = "D:/2022-05-16-RCTRIM/save_dir/test/"
+# save_dir = "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/save_dir/test/"
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -57,6 +71,7 @@ if __name__ == "__main__":
     RC = RCTRIM.RCTRIM(**RCTRIM_params)
     
     # Iterate and save
+    # data, list_of_all_tracks,il,cl,ccl = RC.save_tracks(save_dir)
     RC.save_tracks(save_dir)
   
   

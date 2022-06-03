@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue May 10 11:54:22 2022
-
 @author: Tim
 """
 import numpy as np
@@ -16,11 +15,9 @@ class tracks:
   def clip_E_multiple(self):
     """
     clip the tracks based on multiple specified energies.
-
     Returns
     -------
     None.
-
     """
     
     new_arr = np.zeros((self.cumulative_counts_split[len(self.E_r)],self.data_split.shape[-1]))
@@ -31,12 +28,12 @@ class tracks:
     counter = 0
     
     self.E_r[self.E_r > self.max_E_allowed] = self.max_E_allowed
-    # print(new_arr_shape)
     
     for i,E in enumerate(self.E_r):
     
       index = int(self.sorted_arr[np.searchsorted(self.sorted_arr[:,2],E,side="left"),0])
-      # print(E,self.data_split[index,2])
+      # print(E, self.data_split[index,2])
+
       cc_ = self.cumulative_counts_split[np.searchsorted(self.cumulative_counts_split, index,side="right")]
       
       if counter+(cc_-index) > new_arr_shape[0]:
@@ -48,6 +45,7 @@ class tracks:
         new_arr_shape = new_arr.shape
 
       new_arr[counter:counter+(cc_-index),:] = self.data_split[index:cc_,:]
+      new_arr[counter:counter+(cc_-index),1] = i +1
         
       counter += (cc_-index)
     
@@ -55,8 +53,18 @@ class tracks:
     
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
     
+    np.savetxt("data.csv",self.data,delimiter=",",fmt="%.4f")
+    
   
-  def clip_E(self):
+  def clip_E(self,acceptance = 0.01):
+    """
+    Parameters
+    ----------
+    acceptance : float, optional
+      Fractional acceptance of track energy 
+      (e.g. if you ask to access the last 10 keV you should expect 
+      some energies of 10.01 keV, 9.99 keV etc.) The default is 0.01 (1%).
+    """
     arr_truth = self.data[:,2] <= self.E_r
     # can grab first energy above threshold:
     arr_truth2 = np.roll(arr_truth,-1)
@@ -64,20 +72,30 @@ class tracks:
     self.data = self.data[arr_truth]
     # get new counts and cumulative
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
+    
+    too_high = self.data[self.cumulative_counts,2] >= self.E_r*(1+acceptance)
+    too_low = self.data[self.cumulative_counts+1,2] <= self.E_r*(1-acceptance)
+    clip_track = too_low & too_high
+    # If the energy is too high, code it to -1 so it can be removed later
+    self.data[self.cumulative_counts[too_high],2] = -1
+    # If the second energy is too low, we don't want the track at all
+    if len(self.cumulative_counts[clip_track]):
+      for c,cc in zip(self.counts[clip_track],self.cumulative_counts[clip_track]):
+        self.data[cc:cc+c,2] = -1
+    
+    self.data = self.data[self.data[:,2] >= 0,:]
+    self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
+    
   
-  
-  def rot_track(self, acceptance = 0.01, 
+  def rot_track(self,  
                 histogram = None, specify_angles = None, 
-                m = 1.0086649, E_n = 2.45e3):
+                m = 1.0086649, E_n = 2.47e3):
     """
     Method for rotating the tracks to their energy-appropriate angle based on an incident projectile.
     
     Parameters
     ----------
-    acceptance : float, optional
-      Fractional acceptance of track energy 
-      (e.g. if you ask to access the last 10 keV you should expect 
-      some energies of 10.01 keV, 9.99 keV etc.) The default is 0.01 (1%).
+    
     histogram : tuple of arrays (n, bins), optional
       Tuple of the direct output of matplotlib/numpy histogram of recoil angles (n, bin edges).
       The default is None.
@@ -87,12 +105,10 @@ class tracks:
     m : float, optional
       Mass of incident particle (in u). The default is 1.0086649.
     E_n : float, optional
-      Energy of incident particle (MeV). The default is 2.45e3.
-
+      Energy of incident particle (keV). The default is 2.45e3.
     Returns
     -------
     None.
-
     """
     # Check whether one E_r or multiple:
     # print(self.data_split.shape)
@@ -102,7 +118,11 @@ class tracks:
     if histogram == None:
       if self.energy_check:
         # Elastic scattering only:
-        cos_sq_alpha = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
+        # Non-relativistic:
+        # cos_sq_alpha = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
+        # Relativistic: (needs change of units to proj_m and m)
+        cos_sq_alpha = self.E_r*(E_n+self.proj_m*931493.6148+m*931493.6148)*(E_n+self.proj_m*931493.6148+m*931493.6148)/(
+                        (2*m*931493.6148+self.E_r)*(E_n*E_n + 2*self.proj_m*931493.6148*E_n))
         cos_alpha = math.sqrt(cos_sq_alpha)
         sin_alpha = math.sqrt(1-cos_sq_alpha)
       else:
@@ -114,8 +134,6 @@ class tracks:
           cos_sq_alphas = self.E_r*(self.proj_m+m)*(self.proj_m+m)/(4*m*self.proj_m*E_n)
           cos_alphas = np.sqrt(cos_sq_alphas)
           sin_alphas = np.sqrt(1-cos_sq_alphas)
-          # if len(cos_alphas) == 0:
-          #   print(self.E_r)
         
     else:
       assert self.energy_check, "If using multiple recoil energies, histogram must be None."
@@ -141,16 +159,6 @@ class tracks:
         sin_alpha = sin_alphas[i]
       
       data_ = self.data[cumulative_count:cumulative_count + count,:]
-      # print(self.E_r)
-    
-      if self.energy_check:
-        # If the energy is too high, code it to -1 so it can be removed later
-        if data_[0,2] >= self.E_r*(1+acceptance):
-          data_[0,2] = -1
-          # If the second energy is too low, we don't want the track at all
-          if data_[1,2] <= self.E_r*(1-acceptance):
-            data_[1:,2] = -1
-            continue
         
       data_[:,3:6] = data_[:,3:6]-data_[0,3:6] # translate to 0,0,0
       
@@ -170,7 +178,10 @@ class tracks:
 
     self.secondaries = np.nan*np.zeros((self.num_secondaries,self.data.shape[1]+3)) # +3 for x_iplus1
     self.secondaries[:,:-3] = self.data[self.arr_truth,:]
-    self.secondaries[:,-3:] = self.data[np.roll(self.arr_truth,1),9:12]
+    if self.arr_truth[-1]:
+      self.secondaries[:,-3:] = np.roll(self.data[np.roll(self.arr_truth,1),9:12],-1,axis=0)
+    else:
+      self.secondaries[:,-3:] = self.data[np.roll(self.arr_truth,1),9:12]
   
   
   def iter_sec_tracks(self):
@@ -180,13 +191,14 @@ class tracks:
     for i in range(len(self.secondaries)):
       index = int(self.secondaries[i,14])
       E_prim = self.secondaries[i,2]
-      # E = secondaries[i,7]
       M = self.secondaries[i,13]
       if M != M:
         continue
       alpha = self.alphas[i]
       x_i = self.secondaries[i,9:12]
       x_iplus1 = self.secondaries[i,-3:]
+      
+      
       sec_pos = self.secondaries[i,3:6]#.T
       track_index = self.secondaries[i,1]
       
@@ -204,8 +216,10 @@ class tracks:
       
       sec_track[:,3:6] = sK.rot_secondary_to_primary(sec_track[1,9:12],x_i,sec_track[:,3:6].T).T
       
-      sec_track[:,3:6] = sK.rot_secondary_to_recoil_pos(alpha, x_i, x_iplus1, sec_track[:,3:6].T).T
-
+      if (x_iplus1 == x_iplus1).all():
+        # alternatively, if the 'primary' came to a complete stop, 
+        # keep x_i as direction of secondary.
+        sec_track[:,3:6] = sK.rot_secondary_to_recoil_pos(alpha, x_i, x_iplus1, sec_track[:,3:6].T).T
       
       sec_track[:,3:6] = sec_track[:,3:6] + sec_pos
       
@@ -232,14 +246,23 @@ class tracks:
       
       arr_truth = all_sec_tracks[:,7] > self.E_threshold
       
-      nan_check = all_sec_tracks[:,9] != all_sec_tracks[:,9]
+      nan_check = all_sec_tracks[:,9] != all_sec_tracks[:,9] # xdir is nan
       arr_truth[nan_check] = False # make sure the first points don't have a big recoil from previous interaction
-      
       num_terts = np.sum(arr_truth)
       
       terts = np.nan*np.zeros((num_terts,self.data.shape[1]+3)) # +3 for x_iplus1
       terts[:,:-3] = all_sec_tracks[arr_truth,:-2]
-      terts[:,-3:] = all_sec_tracks[np.roll(arr_truth,1),9:12]
+      
+      if arr_truth[-1]:
+        terts[:,-3:] = np.roll(all_sec_tracks[np.roll(arr_truth,1),9:12],-1,axis=0)
+      else:
+        terts[:,-3:] = all_sec_tracks[np.roll(arr_truth,1),9:12]
+      
+      if np.all(terts[:,9:12]==terts[:,-3:],axis=1).any():
+        pass
+        # print(sum(np.all(terts[:,9:12]==terts[:,-3:],axis=1)))
+        # np.savetxt("all_sec_tracks.csv",all_sec_tracks,delimiter=",",fmt="%.4f")
+        # np.savetxt("terts.csv",terts,delimiter=",",fmt="%.4f")
           
       self.alphas = sK.alpha(all_sec_tracks[arr_truth,-2], 
                              terts[:,13], 
@@ -273,19 +296,17 @@ class tracks:
         self.clip_E_multiple()
       
       else:
-        self.data = self.data_split[i]      
+        self.data = self.data_split[i]
         self.counts = self.counts_split[i]
         self.cumulative_counts = self.cumulative_counts_split[i]
         self.cumulative_counts = self.cumulative_counts - self.cumulative_counts[0]
         if self.E_r < self.max_E_allowed:
           # need to only grab relevant energies
           self.clip_E()
-        
+      
       if self.rotate:
         self.rot_track()
         
-      self.data = self.data[self.data[:,2] >= 0,:]
-      
       self.arr_truth = self.data[:,7] > self.E_threshold
       
       self.arr_truth[self.cumulative_counts] = False
@@ -383,12 +404,10 @@ def get_counts_and_cumulative(data):
   """
   Useful function for extracting the indexes of each individual
   track within the data array. Helps a lot with speed.
-
   Parameters
   ----------
   data : np.ndarray(np.float64)
     Array of track IDs.
-
   Returns
   -------
   unique : np.ndarray(np.float64)
@@ -397,7 +416,6 @@ def get_counts_and_cumulative(data):
     Length of each individual track within data array.
   cumulative_counts : np.ndarray(np.int32)
     Starting index of each individual track in data array.
-
   """
   unique = [data[0]] # bit hacky, but start with first line.
   counts = [1] # start with a count of one.
@@ -417,12 +435,14 @@ def get_counts_and_cumulative(data):
 def get_counts_lists(data, list_of_all_tracks):
   
   indexes, counts, cumulative_counts = get_counts_and_cumulative(data[:,1])
+  indexes_list = [indexes]
   counts_list = [counts]
   cumulative_counts_list = [cumulative_counts]
   
   for sec_track in list_of_all_tracks:
     indexes, counts, cumulative_counts = get_counts_and_cumulative(sec_track[:,1])
+    indexes_list.append(indexes)
     counts_list.append(counts)
     cumulative_counts_list.append(cumulative_counts)
 
-  return counts_list, cumulative_counts_list
+  return indexes_list,counts_list, cumulative_counts_list

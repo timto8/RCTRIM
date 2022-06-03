@@ -8,16 +8,16 @@ import TRIM_conversions as tc
 import DEGRAD_conversions as dc
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-save_TRIM = True
+save_TRIM = False
 
 # Directory should always contain separate folders named after each element:
-trim_file_dir = "D:/2022-05-16-RCTRIM/NRs/DD_CF4/"
+trim_file_dir = "D:/2022-05-16-RCTRIM/NRs/250keV_/"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-save_DEGRAD = False
+save_DEGRAD = True
 
 degrad_file_dir = "D:/2022-05-16-RCTRIM/electrons/raw/"
-degrad_file_name = "DEGRAD.OUT"
+degrad_file_name = "data1.OUT"#"DEGRAD.OUT"
 
 electron_save_dir = "D:/2022-05-16-RCTRIM/electrons/"
 electron_energy = 5.9 

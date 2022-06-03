@@ -5,10 +5,14 @@ Created on Wed Oct 13 16:17:35 2021
 @author: Tim
 """
 import os
-import time
 import random
 import numpy as np
 import numba
+try:
+  import open3d as o3d
+except:
+  print("open3d not found, event_viewer will be disabled.")
+
 
 import drift
 import elements
@@ -70,15 +74,27 @@ class RCTRIM:
     E = self.E_r
     
     for data, list_of_all_tracks, prim_Es, elec_Es in self.track_gen:
-      counts_list, cumulative_counts_list = tracks.get_counts_lists(data, list_of_all_tracks)
-      
-      for track_no in range(len(cumulative_counts_list[0])):
-    
-        data_secs = [track[cumulative_counts_list[i+1][track_no]:cumulative_counts_list[i+1][track_no] + counts_list[i+1][track_no], :-2] for i, track in enumerate(list_of_all_tracks) if (track_no < len(counts_list[i+1]))]
+
+      indexes_list, counts_list, cumulative_counts_list = tracks.get_counts_lists(data, list_of_all_tracks)
+
+      for j in range(len(indexes_list[0])): # j was track_no
+        track_no = indexes_list[0][j]
+  
+        data_secs = []
+        for i, track in enumerate(list_of_all_tracks):
+          if track_no in indexes_list[i+1]:
+            track_locs = np.where(indexes_list[i+1] == track_no)[0][0]
+            data_secs.append(track[cumulative_counts_list[i+1][track_locs]:cumulative_counts_list[i+1][track_locs] + counts_list[i+1][track_locs], :-2])
+          
         data_ = np.concatenate(
-          [data[cumulative_counts_list[0][track_no]:cumulative_counts_list[0][track_no] + counts_list[0][track_no],:]] + data_secs,
+          [data[cumulative_counts_list[0][j]:cumulative_counts_list[0][j] + counts_list[0][j],:]] + data_secs,
           axis=0)
         
+        if self._event_viewer:
+          pcd = o3d.geometry.PointCloud()
+          pcd.points = o3d.utility.Vector3dVector(data_[:,3:6])
+          pcd.colors = o3d.utility.Vector3dVector(abs(data_[:,3:6])/np.nanmax(abs(data_[:,3:6])))
+          o3d.visualization.draw_geometries([pcd])
         
         num_electrons = int(np.nansum((data_[:-1,6]*data_[1:,8])/self.W))
         
@@ -88,7 +104,7 @@ class RCTRIM:
           e_index = random.randint(0,len(self._e_counts)-1)
           e_c = self._e_counts[e_index]
           e_cc = self._e_cumulative_counts[e_index]
-          e_data_ = self.e_data[e_cc:e_cc+e_c,1:]
+          e_data_ = self._e_data[e_cc:e_cc+e_c,1:]
           track_ioni = np.concatenate([track_ioni,e_data_],axis=0)
           
         try:
@@ -113,8 +129,9 @@ class RCTRIM:
             file_name = f"{save_dir}/{E}keV_{self.proj}_{drift_length:.3f}cm_{counter}.txt"
           
           if self.random_xy_offset:
-            xyzdxdydzs[:,[0,3]] += random.rand(-4,4)
-            xyzdxdydzs[:,[1,4]] += random.rand(-4,4)
+            xyzdxdydzs[:,[0,3]] += 8*random.random() - 4
+            xyzdxdydzs[:,[1,4]] += 8*random.random() - 4
+            xyzdxdydzs[:,2] += drift_length
   
           np.savetxt(file_name,xyzdxdydzs,fmt="%.4f")
           counter += 1
@@ -124,16 +141,17 @@ class RCTRIM:
         
   
   def __init__(self, dir_in_str, proj, 
-               E_r = None, batch_size = None,
-               migdal = False, e_energy=5.9, e_dir_in_str="./",
+               E_r = None, batch_size = None, event_viewer = False,
+               migdal = False, e_energy=5.9, e_dir_in_str="./", 
                W = 0.0345, dz_shift = True, random_xy_offset = False,
-               drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016):
+               drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016,):
     
     self.dir_in_str = dir_in_str
     self.proj = proj
     self.proj_m = elements.elements[self.proj]
     self.E_r = E_r
     self._batch_size = batch_size
+    self._event_viewer = event_viewer
     self.migdal = migdal
     
     self.W = W
@@ -146,7 +164,7 @@ class RCTRIM:
     self.load_NRs()
     
     if self.migdal:
-      self._e_energy = e_energy
+      self.e_energy = e_energy
       self.e_dir_in_str = e_dir_in_str
       self.load_ERs()
     
@@ -155,6 +173,9 @@ class RCTRIM:
     self.split_batches()
     
     self.max_E_allowed = self._proj_data[0,2] # the first value is the largest.
+    
+    
+    
     if self.E_r is None:
       self.E_r = self.max_E_allowed
     

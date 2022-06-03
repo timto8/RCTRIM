@@ -49,6 +49,8 @@ def find_indexes(data_elem,data_list,masses):
   targets = data_elem[:,13]
   prims = [data[np.argsort(data[:, 2]),0:3] for data in data_list]
   
+  
+  
   for i in range(len(required_secs)):
     E_sec = required_secs[i]
     M = targets[i]
@@ -58,11 +60,15 @@ def find_indexes(data_elem,data_list,masses):
     
     prim_Es = prims[masses.index(M)]
     
+    
     index = np.searchsorted(prim_Es[:,2],E_sec,side="left")
     counter_index = prim_Es[index,0]
     
+    
     data_elem[i,14] = counter_index
+    print(counter_index,data_elem[i,14])
   
+  np.savetxt("data_elem.csv",data_elem[:10000,:],delimiter=",",fmt="%.5f")
   return None
   
 
