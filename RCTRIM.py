@@ -75,8 +75,8 @@ class RCTRIM:
     
     for data, list_of_all_tracks, prim_Es, elec_Es in self.track_gen:
       
-      if counter > 2000:
-        np.savetxt(f"data_{counter}.csv",data,delimiter=",",fmt="%.4f")
+      # if counter > 2000:
+      #   np.savetxt(f"data_{counter}.csv",data,delimiter=",",fmt="%.4f")
       
       indexes_list, counts_list, cumulative_counts_list = tracks.get_counts_lists(data, list_of_all_tracks)
 
