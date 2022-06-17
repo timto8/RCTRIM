@@ -10,16 +10,18 @@ import numpy as np
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 run_RCTRIM = True
 
-F_CDF = np.genfromtxt("DD_F(n,n)_CDF.txt")
+CDF = np.genfromtxt("DD_C(n,n)_CDF.txt")
 gen = np.random.rand(5000)
-Es = F_CDF[np.searchsorted(F_CDF[:,1],gen),0]+ np.random.normal(0,1,len(gen))
-Es = Es[Es<467]
+Es = CDF[np.searchsorted(CDF[:,1],gen),0]+ np.random.normal(0,1,len(gen))
+# Es = Es[Es<467]
+# Es = Es[Es>1]
+Es = Es[Es<700]
 Es = Es[Es>1]
 
 RCTRIM_params = {
-  "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
+  "dir_in_str": "D:/2022-05-16-RCTRIM/NRs/DD_CF4_1/", # NR directory
   # "dir_in_str": "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/NRs/DD_CF4/", # NR directory
-  "proj": "F", # primary species
+  "proj": "C", # primary species
   "E_r": Es, # Primary ion starting energy/energies [keV], will infer from file if None.
   "batch_size": 50, # Number of tracks to calculate simultaneously.
   
@@ -44,7 +46,7 @@ RCTRIM_params = {
   
 }
 
-save_dir = "D:/2022-05-16-RCTRIM/save_dir/test/"
+save_dir = "D:/2022-05-16-RCTRIM/save_dir/C/"
 # save_dir = "/run/media/timmarley/My Passport/2022-05-16-RCTRIM/save_dir/test/"
 
 

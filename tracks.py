@@ -49,10 +49,12 @@ class tracks:
 
       new_arr[counter:counter+(cc_-index),:] = self.data_split[index:cc_,:]
       new_arr[counter:counter+(cc_-index),1] = i +1
-        
+      
       counter += (cc_-index)
     
     self.data = new_arr[:counter,:]
+    
+    # np.savetxt("arr.csv",self.data,delimiter=",",fmt="%.4f")
     
     self.indexes, self.counts, self.cumulative_counts = get_counts_and_cumulative(self.data[:,1])
     

@@ -51,8 +51,7 @@ def find_indexes(data_elem,data_list,masses):
   
   
   
-  for i in range(len(required_secs)):
-    E_sec = required_secs[i]
+  for i, E_sec in enumerate(required_secs):
     M = targets[i]
     
     if M != M: # Don't need secondary tracks for phonons.
@@ -60,15 +59,25 @@ def find_indexes(data_elem,data_list,masses):
     
     prim_Es = prims[masses.index(M)]
     
-    
     index = np.searchsorted(prim_Es[:,2],E_sec,side="left")
-    counter_index = prim_Es[index,0]
+    try:
+      counter_index = prim_Es[index, 0]
+    except:
+      print(f"Couldn't find {E_sec} keV recoil with mass {M}.")
     
+    if counter_index == i - 1: # catch the infinite loops!
+      # need to find another energy which is close, try index +- 1:
+      second_best = abs(prim_Es[[index-1,index+1],2] - E_sec)
+      sb_i = np.where(second_best == second_best.min())[0][0]
+      
+      if sb_i:
+        counter_index = prim_Es[index+1,0]
+      else:
+        counter_index = prim_Es[index-1,0]
     
     data_elem[i,14] = counter_index
-    print(counter_index,data_elem[i,14])
+    # print(counter_index,data_elem[i,14])
   
-  np.savetxt("data_elem.csv",data_elem[:10000,:],delimiter=",",fmt="%.5f")
   return None
   
 
