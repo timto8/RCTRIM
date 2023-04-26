@@ -353,7 +353,7 @@ class tracks:
   def __init__(self, E_r, data_split, max_E_allowed, proj_m, 
                counts_split, cumulative_counts_split,
                DATA, MASSES, COUNTS, CUMULATIVE_COUNTS,
-               E_r_split = None, rotate = True, E_threshold=0.02):
+               E_r_split = None, rotate = True, E_threshold=0.01):
     
     self.E_r = E_r
     self.E_r_split = E_r_split
@@ -393,13 +393,16 @@ def calc_electron_stop(all_sec_tracks, counts, cumulative_counts, num_points):
     
     track = all_sec_tracks[cumulative_count:cumulative_count+count,:]
 
-    delta_E = track[:-1,2]-track[1:,2]
-    E_R = track[1:,7]
-    E_e = delta_E - E_R
-    elec_E[i] = 0
-    for e in E_e:
-      if e > 0:
-        elec_E[i] = elec_E[i] + e
+    # delta_E = track[:-1,2]-track[1:,2]
+    # E_R = track[1:,7]
+    # E_e = delta_E - E_R
+    
+    # elec_E[i] = 0
+    # for e in E_e:
+    #   if e > 0:
+    #     elec_E[i] = elec_E[i] + e
+        
+    elec_E[i] = np.sum(track[1:,8]*(track[:-1,6]+track[1:,6])/2)
         
   return elec_E
 
