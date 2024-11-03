@@ -13,6 +13,9 @@ try:
 except:
   print("open3d not found, event_viewer will be disabled.")
 
+import matplotlib.pyplot as plt
+
+import matplotlib_format
 
 import drift
 import elements
@@ -94,10 +97,80 @@ class RCTRIM:
           axis=0)
         
         if self._event_viewer:
+          # print(data.shape)
+          
+          fig = plt.figure(figsize=(10,10))
+          plt.subplot(111,aspect='equal')
+          plt.xlabel('X [mm]')
+          plt.ylabel('Y [mm]')
+          
+          ax = plt.gca()
+          
+          pts = data_[:,3:6]/1e7
+          plt.figure(figsize=(24,7))
+          mins = np.min(pts,axis=0)
+          maxes = np.max(pts,axis=0)
+          widths = (maxes-mins)
+          max_width = np.max(widths)*1.1
+          pm = (max_width - widths)/2
+          
+          for i,pts in enumerate([data] + list_of_all_tracks):
+            pts = pts[:,3:6]/1e7
+            #pts = data_[:,3:6]/1e7
+            
+            ax.plot(pts[:,0],pts[:,1],'o',ms=3,label=f'{i+1}')
+  
+            plt.subplot(131,aspect='equal')
+  
+            plt.xlim(mins[0]-pm[0], maxes[0]+pm[0])
+            plt.ylim(mins[1]-pm[1], maxes[1]+pm[1])
+            plt.xticks(np.arange(np.ceil(2*(mins[0]-pm[0])),
+                                  np.floor(2*(maxes[0]+pm[0]))+0.01)/2)
+            plt.yticks(np.arange(np.ceil(2*(mins[1]-pm[1])),
+                                  np.floor(2*(maxes[1]+pm[1]))+0.01)/2)
+            plt.plot(pts[:,0],pts[:,1],'k.',ms=3,label=f'{i+1}')
+            plt.plot([0],[0],'rx',markeredgewidth=4,ms=8)
+            plt.xlabel('X [mm]')
+            plt.ylabel('Y [mm]')
+            
+  
+            plt.subplot(132,aspect='equal')
+            plt.xlim(mins[0]-pm[0], maxes[0]+pm[0])
+            plt.ylim(mins[2]-pm[2], maxes[2]+pm[2])
+            plt.xticks(np.arange(np.ceil(2*(mins[0]-pm[0])),
+                                  np.floor(2*(maxes[0]+pm[0]))+0.01)/2)
+            plt.yticks(np.arange(np.ceil(2*(mins[2]-pm[2])),
+                                  np.floor(2*(maxes[2]+pm[2]))+0.01)/2)
+            plt.plot(pts[:,0],pts[:,2],'k.',ms=3)
+            plt.plot([0],[0],'rx',markeredgewidth=4,ms=8)
+            plt.xlabel('X [mm]')
+            plt.ylabel('Z [mm]')
+  
+            plt.subplot(133,aspect='equal')
+            plt.xlim(mins[1]-pm[1], maxes[1]+pm[1])
+            plt.ylim(mins[2]-pm[2], maxes[2]+pm[2])
+            plt.xticks(np.arange(np.ceil(2*(mins[1]-pm[1])),
+                                  np.floor(2*(maxes[1]+pm[1]))+0.01)/2)
+            plt.yticks(np.arange(np.ceil(2*(mins[2]-pm[2])),
+                                  np.floor(2*(maxes[2]+pm[2]))+0.01)/2)
+            plt.plot(pts[:,1],pts[:,2],'k.',ms=3)
+            plt.plot([0],[0],'rx',markeredgewidth=4,ms=8)
+            plt.xlabel('Y [mm]')
+            plt.ylabel('Z [mm]')
+          
+          
+          handles, labels = ax.get_legend_handles_labels()
+          ax.legend(handles, labels, loc='upper left', title='Recoil tier:',markerscale=2., #mode='expand',
+          edgecolor='white', #ncol=len(list_of_all_tracks)+1,#bbox_to_anchor=(0.5, 1.06),
+          fontsize=12, framealpha=0.5, columnspacing=1)
+          
+          ax = o3d.geometry.TriangleMesh.create_coordinate_frame()
+          ax.scale(1, center=ax.get_center())
+          # print(data_[:,3:6])
           pcd = o3d.geometry.PointCloud()
-          pcd.points = o3d.utility.Vector3dVector(data_[:,3:6])
+          pcd.points = o3d.utility.Vector3dVector(data_[:,3:6]/1e7)
           pcd.colors = o3d.utility.Vector3dVector(abs(data_[:,3:6])/np.nanmax(abs(data_[:,3:6])))
-          o3d.visualization.draw_geometries([pcd])
+          o3d.visualization.draw_geometries([ax,pcd])
         
         num_electrons = int(np.nansum((data_[:-1,6]*data_[1:,8])/self.W))
         
@@ -187,7 +260,7 @@ class RCTRIM:
     self.tracks = tracks.tracks(self.E_r, self._data_split, self.max_E_allowed, self.proj_m, 
                                 self._counts_split, self._cumulative_counts_split,
                                 self._data, self._masses, self._COUNTS, self._CUMULATIVE_COUNTS,
-                                E_r_split = self.E_r_split, rotate = True, E_threshold=0.02)
+                                E_r_split = self.E_r_split, rotate = True, E_threshold=0.01)
     
     self.track_gen = self.tracks.cascade()
     
@@ -196,7 +269,7 @@ class RCTRIM:
 
 
 @numba.njit
-def generate_ionisation(data,num_electrons,W=0.0342,fano=0.28):
+def generate_ionisation(data,num_electrons,W=0.0342,fano=0.2):
   """
   Parameters
   ----------
@@ -232,7 +305,8 @@ def generate_ionisation(data,num_electrons,W=0.0342,fano=0.28):
     electrons_each_stage = (data_section[:-1,6]+data_section[1:,6])/2 * dists / W
     
     for i in range(len(electrons_each_stage)):
-      n = round(np.random.poisson(electrons_each_stage[i]/fano)*fano)
+      n = np.random.poisson(electrons_each_stage[i]/fano)*fano
+      n = int(np.random.binomial(1,n%1) + n//1)
       d = dists[i]
       direction = dirs[i]
       start = starts[i]
@@ -253,14 +327,36 @@ def generate_ionisation(data,num_electrons,W=0.0342,fano=0.28):
     
     
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+def save_arr_python(fname,arr):
+  with open(fname,'w') as f:
+    for i, (x,y,z,dx,dy,dt) in enumerate(arr):
+      if i != len(arr)-1:
+        f.write(f'{x:.4f} {y:.4f} {z:.4f} {dx:.4f} {dy:.4f} {dt:.4f}\n')
+      else:
+        f.write(f'{x:.4f} {y:.4f} {z:.4f} {dx:.4f} {dy:.4f} {dt:.4f}')
 
 
-def save_electron_tracks(E, dir_in_str, save_dir="./", dz_shift = True, 
-                         drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016):
+def save_electron_tracks(E, dir_in_str, num = 0, save_dir="./", dz_shift = True, 
+                         drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016, fname=None):
     
-    data_E = np.load(f"{dir_in_str}/electron_{E}keV.npy")[:,0:4] # i,x,y,z,t,flag
-
+    if fname == None:
+      try:
+        data_E = np.load(f"{dir_in_str}/electron_{E:.2f}keV.npy")[:,0:4] # i,x,y,z,t,flag
+      except:
+        data_E = np.load(f"{dir_in_str}/electron_{E:.1f}keV.npy")[:,0:4] # i,x,y,z,t,flag
+    
+    else:
+      data_E = np.load(f"{dir_in_str}{fname}")[:,0:4]
+      
+    # print(data_E.shape)
+    
     indexes, counts, cumulative_counts = tracks.get_counts_and_cumulative(data_E[:,0])
+    # print(len(counts))
+    if num:
+      if num > len(counts):
+        print(f"Not enough tracks for {num}, using {len(data_E)} instead.")
+      data_E = data_E[:(cumulative_counts[num-1]+counts[num-1]),:]
+      indexes, counts, cumulative_counts = indexes[:num], counts[:num], cumulative_counts[:num]
     
     drifts = 2*np.random.rand(len(counts))+0.4
     
@@ -286,8 +382,11 @@ def save_electron_tracks(E, dir_in_str, save_dir="./", dz_shift = True,
           print(track_no, "empty")
           continue
           
-      np.savetxt(f"{save_dir}/{E}keV_e_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
-     
+      if fname == None:
+        np.savetxt(f"{save_dir}/{E:.2f}keV_e_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
+      else:
+        np.savetxt(f"{save_dir}/{fname[:-4]}_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
+      # save_arr_python(f"{save_dir}/{E:.2f}keV_e_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs)
   
 
   
