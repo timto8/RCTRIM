@@ -49,3 +49,19 @@ def drift_tracks(x, y, z,
   xyzdxdydzs = np.stack((x,y,z,x_drift,y_drift,z_drift),axis=-1)
   
   return xyzdxdydzs
+
+
+
+if __name__ == '__main__':
+  # generating PSF:
+    for i in range(100):
+      x = (np.random.rand()-0.5)*np.ones(100)
+      y = (np.random.rand()-0.5)*np.ones(100)
+      z = np.zeros(100)
+      for drift in np.arange(0.4,2.5,0.2):
+        xyzdxdydzs = drift_tracks(x,y,z,drift = drift)
+        xyzdxdydzs[:,-1] -= np.nanmin(xyzdxdydzs[:,-1]) # change to delta_z
+        xyzdxdydzs[:,-1] = xyzdxdydzs[:,-1] / 0.013
+        
+        np.savetxt(f'D:/2022-05-16-RCTRIM/PSF/raw/{drift:.1f}cm_{i}.txt',xyzdxdydzs,fmt='%.4f')
+    
