@@ -183,7 +183,7 @@ class RCTRIM:
           e_data_ = self._e_data[e_cc:e_cc+e_c,1:]
           track_ioni = np.concatenate([track_ioni,e_data_],axis=0)
           
-        try:
+        if 1:#try:
           
           drift_length = (2*random.random()+0.5)
           xyzdxdydzs = drift.drift_tracks(track_ioni[:,0], 
@@ -198,21 +198,27 @@ class RCTRIM:
           
           if isinstance(self.E_r, np.ndarray) or isinstance(self.E_r, list):
             E = f"{self.E_r[counter]:.3f}"
+            
+          x_offset = y_offset = 0
+            
+          if self.random_xy_offset:
+            x_offset = 8*random.random() - 4
+            y_offset = 4.5*random.random() - 2.25
+            xyzdxdydzs[:,[0,3]] += x_offset
+            xyzdxdydzs[:,[1,4]] += y_offset
+            xyzdxdydzs[:,2] += drift_length
           
           if self.migdal:
-            file_name = f"{save_dir}/{E}keV_{self.proj}_{self.e_energy}keV_e_{drift_length:.3f}cm_{counter}.txt"
+            file_name = f"{save_dir}/{E}keV_{x_offset:.3f}_{y_offset:.3f}_{self.proj}_{self.e_energy}keV_e_{drift_length:.3f}cm_{counter}.txt"
           else:
-            file_name = f"{save_dir}/{E}keV_{self.proj}_{drift_length:.3f}cm_{counter}.txt"
+            file_name = f"{save_dir}/{E}keV_{x_offset:.3f}_{y_offset:.3f}_{self.proj}_{drift_length:.3f}cm_{counter}.txt"
           
-          if self.random_xy_offset:
-            xyzdxdydzs[:,[0,3]] += 8*random.random() - 4
-            xyzdxdydzs[:,[1,4]] += 8*random.random() - 4
-            xyzdxdydzs[:,2] += drift_length
-  
+          
           np.savetxt(file_name,xyzdxdydzs,fmt="%.4f")
           counter += 1
           
-        except ValueError: # if the array is empty, skip to the next one.
+        else:#except ValueError: # if the array is empty, skip to the next one.
+          
           continue
         
   
@@ -337,9 +343,9 @@ def save_arr_python(fname,arr):
 
 
 def save_electron_tracks(E, dir_in_str, num = 0, save_dir="./", dz_shift = True, 
-                         drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016, fname=None):
+                         drift_velocity = 0.013, diff_T = 0.026, diff_L = 0.016, random_rotate=False, randomxy=False, fname=None):
     
-    if fname == None:
+    if fname is None:
       try:
         data_E = np.load(f"{dir_in_str}/electron_{E:.2f}keV.npy")[:,0:4] # i,x,y,z,t,flag
       except:
@@ -358,6 +364,31 @@ def save_electron_tracks(E, dir_in_str, num = 0, save_dir="./", dz_shift = True,
       data_E = data_E[:(cumulative_counts[num-1]+counts[num-1]),:]
       indexes, counts, cumulative_counts = indexes[:num], counts[:num], cumulative_counts[:num]
     
+    yaw = 0
+    pitch = 0
+    x_offset = 0
+    y_offset = 0
+
+    if random_rotate:
+
+      yaws = 2*np.pi*np.random.rand(len(counts))
+      a = np.cos(yaws)
+
+      b = 2*np.random.rand(len(counts))-1
+      pitchs = np.arccos(b)
+
+      c = np.cos(2*np.pi*np.random.rand(len(counts)))
+
+      a_ = np.sqrt(1-a*a)
+      b_ = np.sqrt(1-b*b)
+      c_ = np.sqrt(1-c*c)
+      Rs = np.array([[b*c, a_*b_*c - a*c_, a_*c_],
+                    [b*c_, a_*b_*c_ + a*c, a*b_*c_ - a_*c],
+                    [-b_, a_*b, a*b]])
+    
+    if randomxy:
+      x_offsets, y_offsets = 3*np.random.rand(2,len(counts))-1.5
+
     drifts = 2*np.random.rand(len(counts))+0.4
     
     for track_no in range(len(counts)):
@@ -367,6 +398,19 @@ def save_electron_tracks(E, dir_in_str, num = 0, save_dir="./", dz_shift = True,
       ioni = ioni[ioni[:,0]==ioni[:,0],:]
       
       drift_length = drifts[track_no]
+
+      if random_rotate:
+        R = Rs[:,:,track_no]
+        ioni[:3] = np.matmul(R,ioni[:3].T).T
+        yaw = f'{yaws[track_no]:.3f}'
+        pitch = f'{pitchs[track_no]:.3f}'
+        
+      if randomxy:
+        x_offset = x_offsets[track_no]
+        y_offset = y_offsets[track_no]
+        ioni[:,0] += x_offset
+        ioni[:,1] += y_offset
+
       xyzdxdydzs = drift.drift_tracks(ioni[:,0], ioni[:,1], ioni[:,2],
                                       drift=drift_length,
                                       diff_T = diff_T, diff_L = diff_L)
@@ -383,9 +427,9 @@ def save_electron_tracks(E, dir_in_str, num = 0, save_dir="./", dz_shift = True,
           continue
           
       if fname == None:
-        np.savetxt(f"{save_dir}/{E:.2f}keV_e_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
+        np.savetxt(f"{save_dir}/{E:.2f}keV_e_{x_offset:.3f}_{y_offset:.3f}_{drift_length:.3f}cm_{pitch}_{yaw}_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
       else:
-        np.savetxt(f"{save_dir}/{fname[:-4]}_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
+        np.savetxt(f"{save_dir}/{fname[:-4]}_{x_offset:.3f}_{y_offset:.3f}_{drift_length:.3f}cm_{pitch}_{yaw}_{track_no_str}.txt",xyzdxdydzs,fmt="%.4f")
       # save_arr_python(f"{save_dir}/{E:.2f}keV_e_{drift_length:.3f}cm_{track_no_str}.txt",xyzdxdydzs)
   
 
